@@ -17,5 +17,8 @@
     "railway"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.12.0"
+  }
 }
