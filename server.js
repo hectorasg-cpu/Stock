@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 
 let pg = null;
 try { pg = require('pg'); } catch (error) { pg = null; }
@@ -21,7 +22,7 @@ const seed = {
 };
 
 function daysAgo(days) { const date = new Date(); date.setDate(date.getDate() - days); return date.toISOString(); }
-function uuid() { return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function uuid() { return randomUUID(); }
 function normalizeState(state) { return { products: Array.isArray(state.products) ? state.products : [], movements: Array.isArray(state.movements) ? state.movements : [] }; }
 
 async function ensureDatabase() {
