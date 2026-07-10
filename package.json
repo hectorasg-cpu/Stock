@@ -1,0 +1,21 @@
+{
+  "name": "stock-campo",
+  "version": "1.0.0",
+  "description": "Aplicación para controlar stock en bodega, envasado y agrícola.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "inventario",
+    "stock",
+    "bodega",
+    "agricola",
+    "railway"
+  ],
+  "author": "",
+  "license": "MIT"
+}
