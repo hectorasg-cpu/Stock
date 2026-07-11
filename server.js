@@ -65,6 +65,48 @@ async function handleApi(req, res) {
       if (!product.name || !product.code) { sendJson(res, 400, { error: 'Faltan nombre o código.' }); return true; }
       state.products.push(product); await writeState(state); sendJson(res, 201, state); return true;
     }
+    if (req.method === 'PUT' && req.url.startsWith('/api/products/')) {
+      const productId = decodeURIComponent(req.url.split('/').pop());
+      const data = await readBody(req);
+      const state = await readState();
+      const product = state.products.find(item => item.id === productId);
+
+      if (!product) {
+        sendJson(res, 404, { error: 'Producto no encontrado.' });
+        return true;
+      }
+
+      const name = String(data.name || '').trim();
+      const code = String(data.code || '').trim();
+      const area = String(data.area || '').trim();
+      const unit = String(data.unit || '').trim();
+      const minimum = Number(data.minimum);
+      const replenishDays = Number(data.replenishDays);
+
+      if (!name || !code || !area || !unit || Number.isNaN(minimum) || Number.isNaN(replenishDays) || replenishDays < 1) {
+        sendJson(res, 400, { error: 'Datos del producto inválidos.' });
+        return true;
+      }
+
+      product.name = name;
+      product.code = code;
+      product.area = area;
+      product.unit = unit;
+      product.minimum = minimum;
+      product.replenishDays = replenishDays;
+
+      state.movements.forEach(movement => {
+        if (movement.productId === product.id) {
+          movement.productName = product.name;
+          movement.unit = product.unit;
+        }
+      });
+
+      await writeState(state);
+      sendJson(res, 200, state);
+      return true;
+    }
+
     if (req.method === 'POST' && req.url === '/api/movements') {
       const data = await readBody(req); const state = await readState(); const product = state.products.find(item => item.id === data.productId); const quantity = Number(data.quantity);
       if (!product || !quantity || quantity <= 0) { sendJson(res, 400, { error: 'Producto o cantidad inválida.' }); return true; }
