@@ -18,12 +18,19 @@ const seed = {
     { id: 'agr-004', name: 'Fertilizante foliar', code: 'AGR-004', area: 'Agrícola', stock: 18, unit: 'litros', minimum: 20, replenishDays: 20, lastReplenished: daysAgo(33), lastMovement: daysAgo(5) },
     { id: 'bod-011', name: 'Film palletizador', code: 'BOD-011', area: 'Bodega', stock: 42, unit: 'rollos', minimum: 12, replenishDays: 45, lastReplenished: daysAgo(11), lastMovement: daysAgo(1) }
   ],
-  movements: []
+  movements: [],
+  recipes: []
 };
 
 function daysAgo(days) { const date = new Date(); date.setDate(date.getDate() - days); return date.toISOString(); }
 function uuid() { return randomUUID(); }
-function normalizeState(state) { return { products: Array.isArray(state.products) ? state.products : [], movements: Array.isArray(state.movements) ? state.movements : [] }; }
+function normalizeState(state) {
+  return {
+    products: Array.isArray(state.products) ? state.products : [],
+    movements: Array.isArray(state.movements) ? state.movements : [],
+    recipes: Array.isArray(state.recipes) ? state.recipes : []
+  };
+}
 
 async function ensureDatabase() {
   if (!pool) return;
@@ -59,6 +66,7 @@ function readBody(req) { return new Promise((resolve, reject) => { let body = ''
 async function handleApi(req, res) {
   try {
     if (req.method === 'GET' && req.url === '/api/state') { sendJson(res, 200, await readState()); return true; }
+    if (req.method === 'GET' && req.url === '/api/info') { sendJson(res, 200, { storage: pool ? 'postgres' : 'local-file' }); return true; }
     if (req.method === 'POST' && req.url === '/api/products') {
       const data = await readBody(req); const state = await readState(); const stock = Number(data.stock || 0); const now = new Date().toISOString();
       const product = { id: uuid(), name: String(data.name || '').trim(), code: String(data.code || '').trim(), area: String(data.area || 'Bodega'), stock, unit: String(data.unit || 'unidades'), minimum: Number(data.minimum || 0), replenishDays: Number(data.replenishDays || 30), lastReplenished: stock > 0 ? now : null, lastMovement: stock > 0 ? now : null };
@@ -115,6 +123,33 @@ async function handleApi(req, res) {
       const now = new Date().toISOString(); product.lastMovement = now; if (data.type === 'Entrada') product.lastReplenished = now;
       state.movements.unshift({ id: uuid(), productId: product.id, productName: product.name, type: data.type, quantity, unit: product.unit, source: data.source || 'Sin dato', note: data.note || '', date: now });
       await writeState(state); sendJson(res, 201, state); return true;
+    }
+    if (req.method === 'PUT' && req.url.startsWith('/api/recipes/')) {
+      const recipeId = decodeURIComponent(req.url.split('/').pop());
+      const data = await readBody(req);
+      const state = await readState();
+      const components = Array.isArray(data.components) ? data.components.map(item => ({
+        kind: String(item.kind || '').trim(),
+        code: String(item.code || '').trim(),
+        qty: Number(item.qty || 1)
+      })).filter(item => item.kind && item.code && item.qty > 0) : [];
+
+      if (!recipeId || components.length !== 3) {
+        sendJson(res, 400, { error: 'Receta invalida.' });
+        return true;
+      }
+
+      const recipe = {
+        id: recipeId,
+        components,
+        updatedAt: new Date().toISOString()
+      };
+      const index = state.recipes.findIndex(item => item.id === recipeId);
+      if (index >= 0) state.recipes[index] = recipe;
+      else state.recipes.push(recipe);
+      await writeState(state);
+      sendJson(res, 200, state);
+      return true;
     }
     if (req.url.startsWith('/api/')) { sendJson(res, 404, { error: 'Ruta no encontrada.' }); return true; }
     return false;
