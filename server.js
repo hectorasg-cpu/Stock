@@ -24,14 +24,22 @@ const seed = {
 
 function daysAgo(days) { const date = new Date(); date.setDate(date.getDate() - days); return date.toISOString(); }
 function uuid() { return randomUUID(); }
+function plainText(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function isCoreBidonCode(code) {
+  const value = String(code || '').toUpperCase().trim();
+  return value.startsWith('BIDON-') && (value.endsWith('-ROJO') || value.endsWith('-VERDE') || value.endsWith('-NEGRO'));
+}
+
 function isLegacyMixedProduct(product) {
-  const name = String(product?.name || '');
-  const code = String(product?.code || '');
-  const normalized = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const legacyCode = /^bidons+(c/e|s/e)$/i.test(code.trim());
-  const startsAsLegacyContainer = /^(bidon|botella)/.test(normalized);
-  const describesWine = /(sin etiqueta|cabernet|tinto|blanco|pipeno|pipeño|las casas|baron|tio lucas|saavedra|yo claudio)/.test(normalized);
-  return legacyCode || (startsAsLegacyContainer && describesWine && !/^BIDON-d+(?:_5)?L-(ROJO|VERDE|NEGRO)$/.test(code));
+  const name = plainText(product && product.name);
+  const code = plainText(product && product.code);
+  const legacyCode = code === 'bidon c/e' || code === 'bidon s/e';
+  const startsAsLegacyContainer = name.startsWith('bidon ') || name.startsWith('botella ');
+  const describesWine = ['sin etiqueta', 'cabernet', 'tinto', 'blanco', 'pipeno', 'las casas', 'baron', 'tio lucas', 'saavedra', 'yo claudio'].some(word => name.includes(word));
+  return legacyCode || (startsAsLegacyContainer && describesWine && !isCoreBidonCode(product && product.code));
 }
 
 function normalizeState(state) {
