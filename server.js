@@ -24,9 +24,20 @@ const seed = {
 
 function daysAgo(days) { const date = new Date(); date.setDate(date.getDate() - days); return date.toISOString(); }
 function uuid() { return randomUUID(); }
+function isLegacyMixedProduct(product) {
+  const name = String(product?.name || '');
+  const code = String(product?.code || '');
+  const normalized = name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const legacyCode = /^bidons+(c/e|s/e)$/i.test(code.trim());
+  const startsAsLegacyContainer = /^(bidon|botella)/.test(normalized);
+  const describesWine = /(sin etiqueta|cabernet|tinto|blanco|pipeno|pipeño|las casas|baron|tio lucas|saavedra|yo claudio)/.test(normalized);
+  return legacyCode || (startsAsLegacyContainer && describesWine && !/^BIDON-d+(?:_5)?L-(ROJO|VERDE|NEGRO)$/.test(code));
+}
+
 function normalizeState(state) {
+  const products = Array.isArray(state.products) ? state.products.filter(product => !isLegacyMixedProduct(product)) : [];
   return {
-    products: Array.isArray(state.products) ? state.products : [],
+    products,
     movements: Array.isArray(state.movements) ? state.movements : [],
     recipes: Array.isArray(state.recipes) ? state.recipes : []
   };
